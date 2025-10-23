@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicción de Supervivencia del Titanic</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+
+        body {
+            background: #d9c7a7 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.1"><rect fill="%237a6a52" width="100" height="100"/><path d="M0 0L100 100M100 0L0 100" stroke="%235a4a32" stroke-width="1"/></svg>');
+            color: #3a3325;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(245, 242, 235, 0.95);
+            border: 2px solid #8b7d6b;
+            border-radius: 5px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Efecto de papel antiguo */
+        .container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px 20px 20px;
+            border-bottom: 3px double #8b7d6b;
+            background: linear-gradient(to bottom, #e8dfca, #d9c7a7);
+            position: relative;
+        }
+
+        h1 {
+            color: #5a4a32;
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            color: #7a6a52;
+            font-size: 1.3rem;
+            font-style: italic;
+            margin-bottom: 15px;
+        }
+
+        .ship-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #5a4a32;
+        }
+
+        .card {
+            padding: 30px;
+            position: relative;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #5a4a32;
+            font-size: 1.1rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #8b7d6b;
+            border-radius: 3px;
+            font-size: 16px;
+            background: #f8f5ed;
+            color: #3a3325;
+            transition: all 0.3s ease;
+            font-family: 'Georgia', serif;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #5a4a32;
+            background: #fffdf5;
+            box-shadow: 0 0 10px rgba(90, 74, 50, 0.2);
+        }
+
+        .row {
+            display: flex;
+            gap: 25px;
+            margin-bottom: 0;
+        }
+
+        .col {
+            flex: 1;
+        }
+
+        button {
+            background: linear-gradient(to bottom, #8b7d6b, #6d5d4c);
+            color: #f8f5ed;
+            border: none;
+            padding: 18px 25px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            width: 100%;
+            transition: all 0.3s ease;
+            border: 2px solid #5a4a32;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'Georgia', serif;
+        }
+
+        button:hover {
+            background: linear-gradient(to bottom, #9d8f7d, #7d6d5c);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .result {
+            text-align: center;
+            padding: 25px;
+            border-radius: 3px;
+            margin-top: 25px;
+            display: none;
+            border: 2px solid;
+            font-size: 1.2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.05"><rect fill="%23000" width="100" height="100"/></svg>');
+            pointer-events: none;
+        }
+
+        .sobrevivio {
+            background: linear-gradient(to bottom, #d4edda, #c3e6cb);
+            color: #155724;
+            border-color: #155724;
+        }
+
+        .no-sobrevivio {
+            background: linear-gradient(to bottom, #f8d7da, #f5c6cb);
+            color: #721c24;
+            border-color: #721c24;
+        }
+
+        .result h3 {
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .probabilidad {
+            margin-top: 15px;
+            font-size: 1rem;
+            opacity: 0.9;
+            font-style: italic;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 25px 0;
+        }
+
+        .spinner {
+            border: 5px solid rgba(90, 74, 50, 0.2);
+            border-left-color: #5a4a32;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1.5s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #7a6a52;
+            font-size: 1rem;
+            border-top: 2px solid #8b7d6b;
+            background: linear-gradient(to top, #e8dfca, #d9c7a7);
+            font-style: italic;
+        }
+
+        .historical-note {
+            background: #f8f5ed;
+            border: 1px solid #8b7d6b;
+            border-radius: 3px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 0.95rem;
+            color: #5a4a32;
+            border-left: 4px solid #8b7d6b;
+        }
+
+        @media (max-width: 600px) {
+            .row {
+                flex-direction: column;
+                gap: 0;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            body {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="ship-icon">⛴</div>
+            <h1>Predicción de Supervivencia del Titanic</h1>
+            <p class="subtitle">¿Habrías sobrevivido al viaje inaugural del Titanic?</p>
+        </header>
+
+        <div class="card">
+            <div class="historical-note">
+                <strong>Nota histórica:</strong> El RMS Titanic se hundió en la madrugada del 15 de abril de 1912 después de chocar con un iceberg. De las aproximadamente 2,224 personas a bordo, más de 1,500 perdieron la vida.
+            </div>
+
+            <form id="prediction-form">
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="pclass">Clase del Pasajero</label>
+                            <select id="pclass" required>
+                                <option value="">Seleccione la clase</option>
+                                <option value="1">Primera Clase</option>
+                                <option value="2">Segunda Clase</option>
+                                <option value="3">Tercera Clase</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="sex">Género</label>
+                            <select id="sex" required>
+                                <option value="">Seleccione el género</option>
+                                <option value="female">Mujer</option>
+                                <option value="male">Hombre</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="age">Edad</label>
+                            <input type="number" id="age" min="0" max="100" step="1" placeholder="Ingrese la edad" required>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="sibsp">Hermanos/Cónyuges a Bordo</label>
+                            <input type="number" id="sibsp" min="0" max="10" placeholder="0" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="parch">Padres/Hijos a Bordo</label>
+                            <input type="number" id="parch" min="0" max="10" placeholder="0" required>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="fare">Tarifa Pagada (£)</label>
+                            <input type="number" id="fare" min="0" step="0.01" placeholder="0.00" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="embarked">Puerto de Embarque</label>
+                    <select id="embarked" required>
+                        <option value="">Seleccione el puerto</option>
+                        <option value="C">Cherburgo</option>
+                        <option value="Q">Queenstown</option>
+                        <option value="S">Southampton</option>
+                    </select>
+                </div>
+
+                <button type="submit">Predecir Supervivencia</button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Calculando predicción...</p>
+            </div>
+
+            <div class="result" id="result">
+                <!-- El resultado se mostrará aquí -->
+            </div>
+        </div>
+
+        <footer>
+            <p>Modelo de Predicción de Supervivencia del Titanic • Algoritmo basado en datos históricos</p>
+            <p style="margin-top: 5px; font-size: 0.9rem;">Esta es una simulación estadística basada en patrones históricos reales</p>
+        </footer>
+    </div>
+
+    <script>
+        // ALGORITMO DE PREDICCIÓN ESTÁTICO - Basado en patrones históricos del Titanic
+        function predictTitanicSurvival(pclass, sex, age, sibsp, parch, fare, embarked) {
+            let survivalScore = 0;
+            
+            // FACTORES PRINCIPALES basados en datos históricos reales
+            
+            // 1. GÉNERO - "Mujeres y niños primero" (Factor más importante)
+            if (sex === 'female') survivalScore += 35;
+            if (sex === 'male') survivalScore -= 15;
+            
+            // 2. CLASE - Primera clase tuvo mayor tasa de supervivencia
+            if (pclass === 1) survivalScore += 25;
+            else if (pclass === 2) survivalScore += 10;
+            else if (pclass === 3) survivalScore -= 5;
+            
+            // 3. EDAD - Niños y adultos jóvenes tuvieron mejor chance
+            if (age <= 12) survivalScore += 20;  // Niños
+            else if (age <= 25) survivalScore += 5;  // Adultos jóvenes
+            else if (age >= 60) survivalScore -= 10; // Adultos mayores
+            
+            // 4. FAMILIA - Familias pequeñas tuvieron mejor chance
+            const familySize = sibsp + parch;
+            if (familySize === 1) survivalScore += 8;
+            else if (familySize === 2) survivalScore += 5;
+            else if (familySize >= 5) survivalScore -= 10; // Familias muy grandes
+            
+            // 5. TARIFA - Tarifas más altas correlacionadas con mejor supervivencia
+            if (fare > 50) survivalScore += 12;   // Primera clase alta
+            else if (fare > 20) survivalScore += 5; // Clase media
+            
+            // 6. PUERTO DE EMBARQUE - Pequeñas diferencias históricas
+            if (embarked === 'C') survivalScore += 3;  // Cherburgo
+            else if (embarked === 'S') survivalScore += 1; // Southampton
+            
+            // CALCULAR PROBABILIDAD (ajustada a escala 0-1)
+            let probability = survivalScore / 100;
+            probability = Math.max(0.05, Math.min(0.95, probability)); // Limitar entre 5% y 95%
+            
+            // DETERMINAR SUPERVIVENCIA (umbral ajustado)
+            const survived = probability > 0.5;
+            
+            return {
+                survived: survived,
+                probability: probability,
+                survivalScore: survivalScore
+            };
+        }
+
+        document.getElementById('prediction-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Mostrar indicador de carga
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+            
+            // Recolectar datos del formulario
+            const formData = {
+                pclass: parseInt(document.getElementById('pclass').value),
+                sex: document.getElementById('sex').value,
+                age: parseFloat(document.getElementById('age').value),
+                sibsp: parseInt(document.getElementById('sibsp').value),
+                parch: parseInt(document.getElementById('parch').value),
+                fare: parseFloat(document.getElementById('fare').value),
+                embarked: document.getElementById('embarked').value
+            };
+            
+            // Simular procesamiento (para la animación de carga)
+            setTimeout(() => {
+                try {
+                    // Hacer predicción con nuestro algoritmo estático
+                    const prediction = predictTitanicSurvival(
+                        formData.pclass,
+                        formData.sex,
+                        formData.age,
+                        formData.sibsp,
+                        formData.parch,
+                        formData.fare,
+                        formData.embarked
+                    );
+                    
+                    // Ocultar indicador de carga
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    // Mostrar resultado
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.className = 'result ' + (prediction.survived ? 'sobrevivio' : 'no-sobrevivio');
+                    
+                    if (prediction.survived) {
+                        resultDiv.innerHTML = `
+                            <h3>¡Sobrevivió! ✓</h3>
+                            <p>Basado en la información proporcionada y patrones históricos, este pasajero habría probablemente sobrevivido al desastre del Titanic.</p>
+                            <div class="probabilidad">Probabilidad estimada de supervivencia: ${(prediction.probability * 100).toFixed(1)}%</div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <h3>No Sobrevivió ✗</h3>
+                            <p>Basado en la información proporcionada y patrones históricos, este pasajero no habría sobrevivido al desastre del Titanic.</p>
+                            <div class="probabilidad">Probabilidad estimada de supervivencia: ${(prediction.probability * 100).toFixed(1)}%</div>
+                        `;
+                    }
+                    
+                    resultDiv.style.display = 'block';
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.className = 'result no-sobrevivio';
+                    resultDiv.innerHTML = `
+                        <h3>Error en la predicción</h3>
+                        <p>Ocurrió un error al procesar la predicción. Por favor, verifica que todos los campos estén completos.</p>
+                    `;
+                    resultDiv.style.display = 'block';
+                }
+            }, 800); // Pequeña pausa para mejor experiencia de usuario
+        });
+
+        // Efectos adicionales para mejorar la experiencia
+        document.querySelectorAll('input, select').forEach(element => {
+            element.addEventListener('focus', function() {
+                this.style.transform = 'scale(1.02)';
+            });
+            
+            element.addEventListener('blur', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+
+        // Ejemplo de datos pre-cargados para prueba
+        document.addEventListener('DOMContentLoaded', function() {
+            // Puedes quitar esto - es solo para pruebas
+            console.log('Predictor del Titanic cargado correctamente');
+        });
+    </script>
+</body>
+</html>
